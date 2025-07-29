@@ -13,9 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThumbsUp, ThumbsDown, Film, Tv, Users } from "lucide-react";
+import { Entry } from "@/types/type";
 import { formatDate, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
-import { Entry } from "../types/type";
 
 export const CommunitySection: React.FC = () => {
   const [page, setPage] = useState(1);

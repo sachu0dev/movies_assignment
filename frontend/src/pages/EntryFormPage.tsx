@@ -31,8 +31,8 @@ import {
   Loader2,
   Image as ImageIcon,
 } from "lucide-react";
+import { CreateEntryForm } from "@/types/type";
 import { toast } from "sonner";
-import { CreateEntryForm } from "../types/type";
 
 const entrySchema = z.object({
   title: z.string().min(1, "Title is required"),

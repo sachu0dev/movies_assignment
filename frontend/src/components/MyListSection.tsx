@@ -13,9 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2, Share2, Film, Tv } from "lucide-react";
+import { Entry } from "@/types/type";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import { Entry } from "../types/type";
 
 export const MyListSection: React.FC = () => {
   const [page, setPage] = useState(1);
