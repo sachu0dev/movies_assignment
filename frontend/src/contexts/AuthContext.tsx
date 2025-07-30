@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User } from "../types/type";
+import type { User } from "../types/type";
 
 interface AuthContextType {
   user: User | null;
@@ -29,7 +29,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing auth data on app load
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 

@@ -24,14 +24,8 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ArrowLeft,
-  Upload,
-  X,
-  Loader2,
-  Image as ImageIcon,
-} from "lucide-react";
-import { CreateEntryForm } from "@/types/type";
+import { ArrowLeft, Upload, X, Loader2, ImageIcon } from "@/lib/icons";
+import type { CreateEntryForm } from "@/types/type";
 import { toast } from "sonner";
 
 const entrySchema = z.object({
@@ -56,7 +50,6 @@ export const EntryFormPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch entry data if editing
   const { data: entryData, isLoading: isLoadingEntry } = useQuery({
     queryKey: ["entry", id],
     queryFn: () => entriesAPI.getById(Number(id)),
@@ -76,7 +69,6 @@ export const EntryFormPage: React.FC = () => {
     },
   });
 
-  // Set form values when editing
   useEffect(() => {
     if (entryData?.data?.data) {
       const entry = entryData.data.data;
@@ -157,7 +149,6 @@ export const EntryFormPage: React.FC = () => {
   const onSubmit = async (data: EntryForm) => {
     let imageUrl = imagePreview;
 
-    // Upload new image if selected
     if (imageFile) {
       const uploadedUrl = await handleImageUpload(imageFile);
       if (uploadedUrl) {

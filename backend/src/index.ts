@@ -5,22 +5,18 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
-// Import routes
 import authRoutes from "./routes/auth";
 import entryRoutes from "./routes/entries";
 import uploadRoutes from "./routes/upload";
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
-// Security middleware
 app.use(helmet());
 
-// CORS configuration
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
@@ -28,7 +24,6 @@ app.use(
   })
 );
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
@@ -36,11 +31,9 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
     status: "OK",
@@ -49,12 +42,10 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API routes
 app.use("/auth", authRoutes);
 app.use("/entries", entryRoutes);
 app.use("/upload", uploadRoutes);
 
-// 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({
     error: "Route not found",
@@ -62,7 +53,6 @@ app.use("*", (req, res) => {
   });
 });
 
-// Global error handler
 app.use(
   (
     err: any,
@@ -83,10 +73,8 @@ app.use(
   }
 );
 
-// Start server
 async function startServer() {
   try {
-    // Test database connection
     await prisma.$connect();
     console.log("✅ Database connected successfully");
 
@@ -101,7 +89,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("🛑 SIGTERM received, shutting down gracefully");
   await prisma.$disconnect();

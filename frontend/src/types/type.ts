@@ -1,4 +1,3 @@
-// User types
 export interface User {
   id: number;
   name: string;
@@ -7,7 +6,6 @@ export interface User {
   updatedAt: string;
 }
 
-// Entry types
 export interface Entry {
   id: number;
   title: string;
@@ -30,7 +28,6 @@ export interface Entry {
   updatedAt: string;
 }
 
-// Form types
 export interface CreateEntryForm {
   title: string;
   type: "Movie" | "TV";
@@ -46,7 +43,6 @@ export interface UpdateEntryForm extends Partial<CreateEntryForm> {
   isReleased?: boolean;
 }
 
-// Auth types
 export interface LoginForm {
   email: string;
   password: string;
@@ -58,7 +54,6 @@ export interface RegisterForm {
   password: string;
 }
 
-// Search and filter types
 export interface SearchFilters {
   query?: string;
   type?: "Movie" | "TV";
@@ -68,7 +63,6 @@ export interface SearchFilters {
   limit?: number;
 }
 
-// API Response types
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -88,7 +82,6 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// Upload types
 export interface UploadResponse {
   url: string;
   publicId: string;

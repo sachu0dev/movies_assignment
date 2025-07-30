@@ -38,6 +38,10 @@ export const LoginPage: React.FC = () => {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "john@example.com",
+      password: "password123",
+    },
   });
 
   const onSubmit = async (data: LoginForm) => {

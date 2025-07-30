@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Auth validation schemas
 export const registerSchema = z.object({
   name: z
     .string()
@@ -18,7 +17,6 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Entry validation schemas
 export const createEntrySchema = z.object({
   title: z
     .string()
@@ -54,7 +52,6 @@ export const updateEntrySchema = createEntrySchema.partial().extend({
   isReleased: z.boolean().optional(),
 });
 
-// Search validation schema
 export const searchSchema = z.object({
   query: z.string().optional(),
   type: z.enum(["Movie", "TV"]).optional(),
@@ -64,12 +61,10 @@ export const searchSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
 });
 
-// ID validation schema
 export const idSchema = z.object({
   id: z.coerce.number().int().positive("Invalid ID"),
 });
 
-// Export types
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateEntryInput = z.infer<typeof createEntrySchema>;

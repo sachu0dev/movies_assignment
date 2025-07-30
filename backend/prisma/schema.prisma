@@ -11,13 +11,14 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  entries   Entry[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               Int                    @id @default(autoincrement())
+  name             String
+  email            String                 @unique
+  password         String
+  entries          Entry[]
+  userInteractions UserEntryInteraction[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 }
 
 model Entry {
@@ -38,7 +39,24 @@ model Entry {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // Relations
+  userInteractions UserEntryInteraction[]
+
   @@index([userId])
   @@index([isReleased])
   @@index([likes])
+}
+
+model UserEntryInteraction {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  entryId   Int
+  action    String // "like" or "dislike"
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, entryId])
+  @@index([userId])
+  @@index([entryId])
 }

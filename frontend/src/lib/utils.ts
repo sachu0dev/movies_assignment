@@ -18,7 +18,10 @@ export function truncateText(text: string, maxLength: number) {
   return text.slice(0, maxLength) + "...";
 }
 
-export function getInitials(name: string) {
+export function getInitials(name?: string) {
+  if (!name || typeof name !== "string") {
+    return "U";
+  }
   return name
     .split(" ")
     .map((word) => word[0])

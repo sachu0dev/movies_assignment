@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Starting database seed...");
 
-  // Create demo users
   const hashedPassword = await bcrypt.hash("password123", 12);
 
   const user1 = await prisma.user.upsert({
@@ -41,7 +40,6 @@ async function main() {
 
   console.log("✅ Users created");
 
-  // Create demo entries
   const entries = [
     {
       title: "The Shawshank Redemption",
@@ -168,7 +166,7 @@ async function main() {
   for (const entry of entries) {
     await prisma.entry.upsert({
       where: {
-        id: -1, // This will never match, so it will create new entries
+        id: -1,
       },
       update: {},
       create: entry,

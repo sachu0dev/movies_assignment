@@ -12,7 +12,6 @@ import {
 const router = Router();
 const prisma = new PrismaClient();
 
-// Create new entry
 router.post(
   "/",
   authenticateToken,
@@ -58,18 +57,50 @@ router.post(
   }
 );
 
-// Get user's entries (My List)
 router.get(
   "/my",
   authenticateToken,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { page = 1, limit = 10 } = req.query;
+      const {
+        page = 1,
+        limit = 10,
+        search = "",
+        type = "",
+        sortBy = "createdAt",
+        sortOrder = "desc",
+      } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
+
+      const where: any = { userId: req.user!.id };
+
+      if (search && search !== "") {
+        const searchTerm = search as string;
+        where.OR = [
+          { title: { contains: searchTerm } },
+          { director: { contains: searchTerm } },
+          { location: { contains: searchTerm } },
+        ];
+      }
+
+      if (type && type !== "" && type !== "all") {
+        where.type = type;
+      }
+
+      const orderBy: any = {};
+      if (sortBy === "createdAt") {
+        orderBy.createdAt = sortOrder;
+      } else if (sortBy === "title") {
+        orderBy.title = sortOrder;
+      } else if (sortBy === "director") {
+        orderBy.director = sortOrder;
+      } else if (sortBy === "yearTime") {
+        orderBy.yearTime = sortOrder;
+      }
 
       const [entries, total] = await Promise.all([
         prisma.entry.findMany({
-          where: { userId: req.user!.id },
+          where,
           include: {
             user: {
               select: {
@@ -78,13 +109,11 @@ router.get(
               },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy,
           skip,
           take: Number(limit),
         }),
-        prisma.entry.count({
-          where: { userId: req.user!.id },
-        }),
+        prisma.entry.count({ where }),
       ]);
 
       const totalPages = Math.ceil(total / Number(limit));
@@ -111,15 +140,49 @@ router.get(
   }
 );
 
-// Get community entries (public entries sorted by likes)
 router.get("/community", async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      type = "",
+      sortBy = "likes",
+      sortOrder = "desc",
+    } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = { isReleased: true };
+
+    if (search && search !== "") {
+      const searchTerm = search as string;
+      where.OR = [
+        { title: { contains: searchTerm } },
+        { director: { contains: searchTerm } },
+        { location: { contains: searchTerm } },
+      ];
+    }
+
+    if (type && type !== "" && type !== "all") {
+      where.type = type;
+    }
+
+    const orderBy: any = {};
+    if (sortBy === "likes") {
+      orderBy.likes = sortOrder;
+    } else if (sortBy === "createdAt") {
+      orderBy.createdAt = sortOrder;
+    } else if (sortBy === "title") {
+      orderBy.title = sortOrder;
+    } else if (sortBy === "director") {
+      orderBy.director = sortOrder;
+    } else if (sortBy === "yearTime") {
+      orderBy.yearTime = sortOrder;
+    }
 
     const [entries, total] = await Promise.all([
       prisma.entry.findMany({
-        where: { isReleased: true },
+        where,
         include: {
           user: {
             select: {
@@ -128,13 +191,11 @@ router.get("/community", async (req: Request, res: Response) => {
             },
           },
         },
-        orderBy: { likes: "desc" },
+        orderBy,
         skip,
         take: Number(limit),
       }),
-      prisma.entry.count({
-        where: { isReleased: true },
-      }),
+      prisma.entry.count({ where }),
     ]);
 
     const totalPages = Math.ceil(total / Number(limit));
@@ -160,20 +221,18 @@ router.get("/community", async (req: Request, res: Response) => {
   }
 });
 
-// Search and filter entries
 router.get("/search", async (req: Request, res: Response) => {
   try {
     const validatedData = searchSchema.parse(req.query);
     const { query, type, year, director, page = 1, limit = 10 } = validatedData;
     const skip = (page - 1) * limit;
 
-    // Build where clause
     const where: any = {};
 
     if (query) {
       where.OR = [
-        { title: { contains: query, mode: "insensitive" } },
-        { director: { contains: query, mode: "insensitive" } },
+        { title: { contains: query } },
+        { director: { contains: query } },
       ];
     }
 
@@ -186,7 +245,7 @@ router.get("/search", async (req: Request, res: Response) => {
     }
 
     if (director) {
-      where.director = { contains: director, mode: "insensitive" };
+      where.director = { contains: director };
     }
 
     const [entries, total] = await Promise.all([
@@ -238,7 +297,91 @@ router.get("/search", async (req: Request, res: Response) => {
   }
 });
 
-// Update entry
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = idSchema.parse(req.params);
+
+    const entry = await prisma.entry.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        error: "Entry not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: entry,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      return res.status(400).json({
+        success: false,
+        error: "Validation error",
+        details: JSON.parse(error.message),
+      });
+    }
+
+    console.error("Get entry by ID error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+});
+
+router.get(
+  "/:id/interaction",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = idSchema.parse(req.params);
+      const userId = req.user!.id;
+
+      const interaction = await prisma.userEntryInteraction.findUnique({
+        where: {
+          userId_entryId: {
+            userId,
+            entryId: id,
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          action: interaction?.action || null,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({
+          success: false,
+          error: "Validation error",
+          details: JSON.parse(error.message),
+        });
+      }
+
+      console.error("Get user interaction error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Internal server error",
+      });
+    }
+  }
+);
+
 router.put(
   "/:id",
   authenticateToken,
@@ -247,7 +390,6 @@ router.put(
       const { id } = idSchema.parse(req.params);
       const validatedData = updateEntrySchema.parse(req.body);
 
-      // Check if entry exists and belongs to user
       const existingEntry = await prisma.entry.findFirst({
         where: { id, userId: req.user!.id },
       });
@@ -295,7 +437,6 @@ router.put(
   }
 );
 
-// Delete entry
 router.delete(
   "/:id",
   authenticateToken,
@@ -303,7 +444,6 @@ router.delete(
     try {
       const { id } = idSchema.parse(req.params);
 
-      // Check if entry exists and belongs to user
       const existingEntry = await prisma.entry.findFirst({
         where: { id, userId: req.user!.id },
       });
@@ -340,8 +480,6 @@ router.delete(
     }
   }
 );
-
-// Release entry to community
 router.post(
   "/:id/release",
   authenticateToken,
@@ -349,7 +487,6 @@ router.post(
     try {
       const { id } = idSchema.parse(req.params);
 
-      // Check if entry exists and belongs to user
       const existingEntry = await prisma.entry.findFirst({
         where: { id, userId: req.user!.id },
       });
@@ -397,84 +534,200 @@ router.post(
   }
 );
 
-// Like entry
-router.post("/:id/like", async (req: Request, res: Response) => {
-  try {
-    const { id } = idSchema.parse(req.params);
+router.post(
+  "/:id/like",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = idSchema.parse(req.params);
+      const userId = req.user!.id;
 
-    const entry = await prisma.entry.update({
-      where: { id },
-      data: { likes: { increment: 1 } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
+      const entry = await prisma.entry.findUnique({
+        where: { id },
+      });
+
+      if (!entry) {
+        return res.status(404).json({
+          success: false,
+          error: "Entry not found",
+        });
+      }
+
+      const existingInteraction = await prisma.userEntryInteraction.findUnique({
+        where: {
+          userId_entryId: {
+            userId,
+            entryId: id,
           },
         },
-      },
-    });
-
-    return res.json({
-      success: true,
-      data: entry,
-      message: "Entry liked successfully",
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      return res.status(400).json({
-        success: false,
-        error: "Validation error",
-        details: JSON.parse(error.message),
       });
-    }
 
-    console.error("Like entry error:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Internal server error",
-    });
-  }
-});
+      let likeIncrement = 0;
+      let dislikeDecrement = 0;
 
-// Dislike entry
-router.post("/:id/dislike", async (req: Request, res: Response) => {
-  try {
-    const { id } = idSchema.parse(req.params);
+      if (existingInteraction) {
+        if (existingInteraction.action === "like") {
+          await prisma.userEntryInteraction.delete({
+            where: { id: existingInteraction.id },
+          });
+          likeIncrement = -1;
+        } else if (existingInteraction.action === "dislike") {
+          await prisma.userEntryInteraction.update({
+            where: { id: existingInteraction.id },
+            data: { action: "like" },
+          });
+          likeIncrement = 1;
+          dislikeDecrement = -1;
+        }
+      } else {
+        await prisma.userEntryInteraction.create({
+          data: {
+            userId,
+            entryId: id,
+            action: "like",
+          },
+        });
+        likeIncrement = 1;
+      }
 
-    const entry = await prisma.entry.update({
-      where: { id },
-      data: { dislikes: { increment: 1 } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
+      const updatedEntry = await prisma.entry.update({
+        where: { id },
+        data: {
+          likes: { increment: likeIncrement },
+          dislikes: { increment: dislikeDecrement },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return res.json({
-      success: true,
-      data: entry,
-      message: "Entry disliked successfully",
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      return res.status(400).json({
+      return res.json({
+        success: true,
+        data: updatedEntry,
+        message:
+          likeIncrement > 0
+            ? "Entry liked successfully"
+            : "Like removed successfully",
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({
+          success: false,
+          error: "Validation error",
+          details: JSON.parse(error.message),
+        });
+      }
+
+      console.error("Like entry error:", error);
+      return res.status(500).json({
         success: false,
-        error: "Validation error",
-        details: JSON.parse(error.message),
+        error: "Internal server error",
       });
     }
-
-    console.error("Dislike entry error:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Internal server error",
-    });
   }
-});
+);
+
+router.post(
+  "/:id/dislike",
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = idSchema.parse(req.params);
+      const userId = req.user!.id;
+
+      const entry = await prisma.entry.findUnique({
+        where: { id },
+      });
+
+      if (!entry) {
+        return res.status(404).json({
+          success: false,
+          error: "Entry not found",
+        });
+      }
+
+      const existingInteraction = await prisma.userEntryInteraction.findUnique({
+        where: {
+          userId_entryId: {
+            userId,
+            entryId: id,
+          },
+        },
+      });
+
+      let dislikeIncrement = 0;
+      let likeDecrement = 0;
+
+      if (existingInteraction) {
+        if (existingInteraction.action === "dislike") {
+          await prisma.userEntryInteraction.delete({
+            where: { id: existingInteraction.id },
+          });
+          dislikeIncrement = -1;
+        } else if (existingInteraction.action === "like") {
+          await prisma.userEntryInteraction.update({
+            where: { id: existingInteraction.id },
+            data: { action: "dislike" },
+          });
+          dislikeIncrement = 1;
+          likeDecrement = -1;
+        }
+      } else {
+        await prisma.userEntryInteraction.create({
+          data: {
+            userId,
+            entryId: id,
+            action: "dislike",
+          },
+        });
+        dislikeIncrement = 1;
+      }
+
+      const updatedEntry = await prisma.entry.update({
+        where: { id },
+        data: {
+          dislikes: { increment: dislikeIncrement },
+          likes: { increment: likeDecrement },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: updatedEntry,
+        message:
+          dislikeIncrement > 0
+            ? "Entry disliked successfully"
+            : "Dislike removed successfully",
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({
+          success: false,
+          error: "Validation error",
+          details: JSON.parse(error.message),
+        });
+      }
+
+      console.error("Dislike entry error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Internal server error",
+      });
+    }
+  }
+);
 
 export default router;

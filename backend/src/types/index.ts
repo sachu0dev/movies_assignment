@@ -1,15 +1,12 @@
 import { Request } from "express";
 import { User } from "@prisma/client";
 
-// User type without password for auth middleware
 export type UserWithoutPassword = Omit<User, "password">;
 
-// Extended Request interface with user
 export interface AuthenticatedRequest extends Request {
   user?: UserWithoutPassword;
 }
 
-// Auth types
 export interface RegisterRequest {
   name: string;
   email: string;
@@ -30,7 +27,6 @@ export interface AuthResponse {
   token: string;
 }
 
-// Entry types
 export interface CreateEntryRequest {
   title: string;
   type: "Movie" | "TV";
@@ -68,7 +64,6 @@ export interface EntryResponse {
   updatedAt: string;
 }
 
-// Search and filter types
 export interface SearchFilters {
   query?: string;
   type?: "Movie" | "TV";
@@ -78,13 +73,11 @@ export interface SearchFilters {
   limit?: number;
 }
 
-// Upload types
 export interface UploadResponse {
   url: string;
   publicId: string;
 }
 
-// API Response types
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;

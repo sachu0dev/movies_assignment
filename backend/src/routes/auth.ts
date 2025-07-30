@@ -7,13 +7,10 @@ import { registerSchema, loginSchema } from "../utils/validation";
 const router = Router();
 const prisma = new PrismaClient();
 
-// Register user
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    // Validate input
     const validatedData = registerSchema.parse(req.body);
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email },
     });
@@ -25,10 +22,8 @@ router.post("/register", async (req: Request, res: Response) => {
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         name: validatedData.name,
@@ -44,7 +39,6 @@ router.post("/register", async (req: Request, res: Response) => {
       },
     });
 
-    // Generate JWT token
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
       expiresIn: "7d",
     });
@@ -74,13 +68,10 @@ router.post("/register", async (req: Request, res: Response) => {
   }
 });
 
-// Login user
 router.post("/login", async (req: Request, res: Response) => {
   try {
-    // Validate input
     const validatedData = loginSchema.parse(req.body);
 
-    // Find user
     const user = await prisma.user.findUnique({
       where: { email: validatedData.email },
     });
@@ -92,7 +83,6 @@ router.post("/login", async (req: Request, res: Response) => {
       });
     }
 
-    // Check password
     const isPasswordValid = await bcrypt.compare(
       validatedData.password,
       user.password
@@ -105,12 +95,10 @@ router.post("/login", async (req: Request, res: Response) => {
       });
     }
 
-    // Generate JWT token
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
       expiresIn: "7d",
     });
 
-    // Return user data (without password)
     const { password, ...userWithoutPassword } = user;
 
     return res.json({

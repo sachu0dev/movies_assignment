@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { entriesAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,79 +12,169 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ThumbsUp, ThumbsDown, Film, Tv, Users } from "lucide-react";
-import { Entry } from "@/types/type";
+import {
+  ThumbsUp,
+  ThumbsDown,
+  Film,
+  Tv,
+  Users,
+  ThumbsUpIcon,
+  ThumbsDownIcon,
+} from "@/lib/icons";
+import type { Entry } from "@/types/type";
 import { formatDate, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { SearchAndFilter } from "./SearchAndFilter";
+
+const InteractionButtons: React.FC<{ entry: Entry }> = ({ entry }) => {
+  const queryClient = useQueryClient();
+
+  const { data: interactionData } = useQuery({
+    queryKey: ["entry-interaction", entry.id],
+    queryFn: () => entriesAPI.getInteraction(entry.id),
+    enabled: true,
+  });
+
+  const userAction = interactionData?.data?.data?.action || null;
+
+  const likeMutation = useMutation({
+    mutationFn: () => entriesAPI.like(entry.id),
+    onSuccess: (response) => {
+      const message = response.data.message;
+      toast.success(message);
+      queryClient.setQueryData(["community-entries"], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.map((e: Entry) =>
+              e.id === entry.id ? response.data.data : e
+            ),
+          },
+        };
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["entry-interaction", entry.id],
+      });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || "Failed to like entry");
+    },
+  });
+
+  const dislikeMutation = useMutation({
+    mutationFn: () => entriesAPI.dislike(entry.id),
+    onSuccess: (response) => {
+      const message = response.data.message;
+      toast.success(message);
+      queryClient.setQueryData(["community-entries"], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.map((e: Entry) =>
+              e.id === entry.id ? response.data.data : e
+            ),
+          },
+        };
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["entry-interaction", entry.id],
+      });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || "Failed to dislike entry");
+    },
+  });
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => likeMutation.mutate()}
+          disabled={likeMutation.isPending || dislikeMutation.isPending}
+          className={
+            userAction === "like" ? "text-black hover:text-gray-800" : ""
+          }
+        >
+          {userAction === "like" ? (
+            <ThumbsUpIcon className="h-4 w-4 fill-current" />
+          ) : (
+            <ThumbsUp className="h-4 w-4" />
+          )}
+        </Button>
+        <span className="text-xs font-medium">{entry.likes}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => dislikeMutation.mutate()}
+          disabled={likeMutation.isPending || dislikeMutation.isPending}
+          className={
+            userAction === "dislike" ? "text-red-600 hover:text-red-700" : ""
+          }
+        >
+          {userAction === "dislike" ? (
+            <ThumbsDownIcon className="h-4 w-4 fill-current" />
+          ) : (
+            <ThumbsDown className="h-4 w-4" />
+          )}
+        </Button>
+        <span className="text-xs font-medium">{entry.dislikes}</span>
+      </div>
+    </div>
+  );
+};
 
 export const CommunitySection: React.FC = () => {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("all");
+  const [sortBy, setSortBy] = useState("likes");
+  const [sortOrder, setSortOrder] = useState("desc");
   const limit = 10;
 
   const {
     data: entriesData,
     isLoading,
     error,
-    refetch,
   } = useQuery({
-    queryKey: ["community-entries", page],
-    queryFn: () => entriesAPI.getCommunity({ page, limit }),
+    queryKey: ["community-entries", page, search, type, sortBy, sortOrder],
+    queryFn: () =>
+      entriesAPI.getCommunity({
+        page,
+        limit,
+        search,
+        type,
+        sortBy,
+        sortOrder,
+      }),
   });
 
-  const handleLike = async (entryId: number) => {
-    try {
-      await entriesAPI.like(entryId);
-      toast.success("Entry liked!");
-      refetch();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to like entry");
-    }
-  };
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+  }, []);
 
-  const handleDislike = async (entryId: number) => {
-    try {
-      await entriesAPI.dislike(entryId);
-      toast.success("Entry disliked!");
-      refetch();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to dislike entry");
-    }
-  };
+  const handleTypeChange = useCallback((value: string) => {
+    setType(value);
+    setPage(1);
+  }, []);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-32 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const handleSortByChange = useCallback((value: string) => {
+    setSortBy(value);
+    setPage(1);
+  }, []);
 
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground">
-            Failed to load community entries. Please try again.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleSortOrderChange = useCallback((value: string) => {
+    setSortOrder(value);
+    setPage(1);
+  }, []);
 
   const entries = entriesData?.data?.data || [];
   const pagination = entriesData?.data?.pagination;
@@ -99,7 +189,41 @@ export const CommunitySection: React.FC = () => {
         <Badge variant="outline">{pagination?.total || 0} entries</Badge>
       </div>
 
-      {entries.length === 0 ? (
+      {/* Search and Filter - Always visible */}
+      <SearchAndFilter
+        onSearchChange={handleSearchChange}
+        onTypeChange={handleTypeChange}
+        onSortByChange={handleSortByChange}
+        onSortOrderChange={handleSortOrderChange}
+        defaultType={type}
+        defaultSortBy={sortBy}
+        defaultSortOrder={sortOrder}
+        showSortOptions={true}
+      />
+
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-32 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              Failed to load community entries. Please try again.
+            </p>
+          </CardContent>
+        </Card>
+      ) : entries.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
@@ -174,32 +298,7 @@ export const CommunitySection: React.FC = () => {
                       <div className="text-xs text-muted-foreground">
                         {formatDate(entry.createdAt)}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleLike(entry.id)}
-                          >
-                            <ThumbsUp className="h-4 w-4" />
-                          </Button>
-                          <span className="text-xs font-medium">
-                            {entry.likes}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDislike(entry.id)}
-                          >
-                            <ThumbsDown className="h-4 w-4" />
-                          </Button>
-                          <span className="text-xs font-medium">
-                            {entry.dislikes}
-                          </span>
-                        </div>
-                      </div>
+                      <InteractionButtons entry={entry} />
                     </div>
                   </div>
                 </CardContent>

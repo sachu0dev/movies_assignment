@@ -4,21 +4,18 @@ import { v2 as cloudinary } from "cloudinary";
 
 const router = Router();
 
-// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    // Check file type
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
@@ -27,7 +24,6 @@ const upload = multer({
   },
 });
 
-// Upload image to Cloudinary
 router.post(
   "/",
   upload.single("image"),
@@ -40,11 +36,9 @@ router.post(
         });
       }
 
-      // Convert buffer to base64
       const b64 = Buffer.from(req.file.buffer).toString("base64");
       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
-      // Upload to Cloudinary
       const result = await cloudinary.uploader.upload(dataURI, {
         folder: "movies-app",
         transformation: [
@@ -82,7 +76,6 @@ router.post(
   }
 );
 
-// Delete image from Cloudinary
 router.delete("/:publicId", async (req: Request, res: Response) => {
   try {
     const { publicId } = req.params;

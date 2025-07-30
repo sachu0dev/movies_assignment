@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { entriesAPI } from "@/lib/api";
@@ -12,13 +12,18 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, Share2, Film, Tv } from "lucide-react";
-import { Entry } from "@/types/type";
+import { Plus, Edit, Trash2, Share2, Film, Tv } from "@/lib/icons";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import type { Entry } from "@/types/type";
+import { SearchAndFilter } from "./SearchAndFilter";
 
 export const MyListSection: React.FC = () => {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("all");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
   const limit = 10;
 
   const {
@@ -27,8 +32,16 @@ export const MyListSection: React.FC = () => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["my-entries", page],
-    queryFn: () => entriesAPI.getMy({ page, limit }),
+    queryKey: ["my-entries", page, search, type, sortBy, sortOrder],
+    queryFn: () =>
+      entriesAPI.getMy({
+        page,
+        limit,
+        search,
+        type,
+        sortBy,
+        sortOrder,
+      }),
   });
 
   const handleRelease = async (entryId: number) => {
@@ -53,41 +66,25 @@ export const MyListSection: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-32 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+  }, []);
 
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground">
-            Failed to load your entries. Please try again.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleTypeChange = useCallback((value: string) => {
+    setType(value);
+    setPage(1);
+  }, []);
+
+  const handleSortByChange = useCallback((value: string) => {
+    setSortBy(value);
+    setPage(1);
+  }, []);
+
+  const handleSortOrderChange = useCallback((value: string) => {
+    setSortOrder(value);
+    setPage(1);
+  }, []);
 
   const entries = entriesData?.data?.data || [];
   const pagination = entriesData?.data?.pagination;
@@ -104,7 +101,40 @@ export const MyListSection: React.FC = () => {
         </Link>
       </div>
 
-      {entries.length === 0 ? (
+      {/* Search and Filter - Always visible */}
+      <SearchAndFilter
+        onSearchChange={handleSearchChange}
+        onTypeChange={handleTypeChange}
+        onSortByChange={handleSortByChange}
+        onSortOrderChange={handleSortOrderChange}
+        defaultType={type}
+        defaultSortBy={sortBy}
+        defaultSortOrder={sortOrder}
+      />
+
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-32 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              Failed to load your entries. Please try again.
+            </p>
+          </CardContent>
+        </Card>
+      ) : entries.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
